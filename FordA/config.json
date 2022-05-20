@@ -1,0 +1,1 @@
+{"task_type": "clf", "input": ["dim_0"], "output": ["labels"], "timeseries": ["dim_0"], "categoricals": ["labels"]}
