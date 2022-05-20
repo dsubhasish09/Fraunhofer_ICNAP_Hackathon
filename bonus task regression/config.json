@@ -1,0 +1,32 @@
+{
+    "task_type": "reg",
+    "input": [
+        "run",
+        "DOC",
+        "time",
+        "material",
+        "feed",
+        "case",
+        "smcAC",
+        "smcDC",
+        "vib_table",
+        "vib_spindle",
+        "AE_table",
+        "AE_spindle"
+        
+    ],
+    "output": [
+        "VB"
+    ],
+    "timeseries":[
+        "smcAC",
+        "smcDC",
+        "vib_table",
+        "vib_spindle",
+        "AE_table",
+        "AE_spindle"
+    ],
+    "categoricals": [
+        "material"
+    ]
+}
