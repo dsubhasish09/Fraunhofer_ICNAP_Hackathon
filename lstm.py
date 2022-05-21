@@ -16,7 +16,7 @@ def dimenstion_mod(x):
 
 # df = pd.read_pickle('./data.pkl')
 def lstm(df,target):
-    X =  df[df.columns.drop(target)].to_numpy()
+    X =  np.array(df["dim_0"].to_list())
     y = df[target].to_numpy(dtype=int)
 
     y = np.where(y == -1, 0, y)
@@ -42,7 +42,7 @@ def lstm(df,target):
     model.compile(optimizer='adam', loss=tf.keras.losses.binary_crossentropy)
 
     history = model.fit(X_train,y_train,epochs=100, validation_data=(X_val, y_val), validation_steps = 20 ,batch_size=100)
-
+    model.save('lstm')
     y_pred = model.predict(X_test)
     y_pred = np.where(y_pred > 0.5,1,0)
 

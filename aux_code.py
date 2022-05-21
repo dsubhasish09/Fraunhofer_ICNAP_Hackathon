@@ -13,6 +13,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from tensorflow import keras
 from tensorflow.keras import layers
+from keras_nlp.layers import SinePositionEncoding
+from sklearn.metrics import balanced_accuracy_score
+from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import ConfusionMatrixDisplay
 
 def load_data(data_path):
     """
@@ -29,6 +33,7 @@ def preprocess_data(data):
     Add more preprocessing steps if needed.
     """
     data["labels"] = data["labels"].astype(int)
+    data.dropna(inplace = True)
     return data.sample(frac=1)
 
 def split_train_test(data):
@@ -68,6 +73,7 @@ def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
     x = layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
     return x + res
 
+
 def build_model(
     input_shape,
     head_size,
@@ -80,6 +86,9 @@ def build_model(
 ):
     inputs = keras.Input(shape=input_shape)
     x = inputs
+    x_ = SinePositionEncoding()(x)
+    x= x + x_
+    
     for _ in range(num_transformer_blocks):
         x = transformer_encoder(x, head_size, num_heads, ff_dim, dropout)
 
@@ -97,29 +106,29 @@ def model_training(train):
     X_train, Y_train = train
     input_shape = X_train.shape[1:]
     model=build_model(
-    input_shape,
-    head_size=256,
-    num_heads=4,
-    ff_dim=4,
-    num_transformer_blocks=4,
-    mlp_units=[128],
-    mlp_dropout=0.4,
-    dropout=0.25,
-    )
+                        input_shape,
+                        head_size=256,
+                        num_heads=4,
+                        ff_dim=4,
+                        num_transformer_blocks=4,
+                        mlp_units=[128],
+                        mlp_dropout=0.4,
+                        dropout=0.25,
+                     )
     model.compile(
-    loss=keras.losses.BinaryCrossentropy(),
-    optimizer=keras.optimizers.Adam(learning_rate=1e-4),
-    metrics=keras.metrics.BinaryAccuracy(),
+                    loss=keras.losses.BinaryCrossentropy(),
+                    optimizer=keras.optimizers.Adam(learning_rate=1e-4),
+                    metrics=keras.metrics.BinaryAccuracy(),
     )
     callbacks = [keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)]
     
     model.fit(
-    X_train,
-    Y_train,
-    validation_split=0.2,
-    epochs=200,
-    batch_size=64,
-    callbacks=callbacks,
+                X_train,
+                Y_train,
+                validation_split=0.2,
+                epochs=200,
+                batch_size=16,
+                callbacks=callbacks,
     )
     
     
@@ -135,7 +144,12 @@ def metric(validation_data, model):
     2. Confusion matrix
     3. Per-class accuracy
     """
-    metrics=None
+    X_val, Y_val = validation_data
+    Y_pred = model.predict(X_val)>0.5
+    ba=balanced_accuracy_score(Y_val, Y_pred)
+    cm=confusion_matrix(Y_val, Y_pred)
+    # cm_display = ConfusionMatrixDisplay(cm).plot()
+    metrics=[cm,ba]
     return metrics
 
 def validation(metrics, metrics_validation):
@@ -144,7 +158,8 @@ def validation(metrics, metrics_validation):
     Plot confusion matrices of self analysis and LSTM with balanced_accuracy
     
     """
-    return
+    cm_model = ConfusionMatrixDisplay(metrics[0]).plot()
+    cm_lstm = ConfusionMatrixDisplay(metrics_validation[0]).plot()
 
 if __name__=="__main__":
     path="./FordA/data.pkl"
@@ -157,7 +172,7 @@ if __name__=="__main__":
     X_val,Y_val = timeseries_transform(val)
     
     model_self=model_training((X_train,Y_train))
-#     metrics=metric(val,model_self)
+    # metrics=metric(val,model_self)
     
 #     lstm_cm,lstm_balanced_accuracy=lstm(preprocessed_data,target='labels')
 #     metrics_validation = [lstm_cm, lstm_balanced_accuracy]
