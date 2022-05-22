@@ -18,6 +18,22 @@ from sklearn.metrics import balanced_accuracy_score
 from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.metrics import ConfusionMatrixDisplay
 
+import pickle
+
+from keras.callbacks import TensorBoard
+from tensorflow.keras import layers
+from datetime import datetime
+from packaging import version
+import time
+import tensorflow as tf
+
+np.random.seed(0)
+tf.random.set_seed(0)
+
+NAME = "Model_TF-With Positional Encoding"#.format(int(time.time()))
+tb_callback = TensorBoard(log_dir='logs/{}'.format(NAME))
+# %load_ext tensorboard
+
 def load_data(data_path):
     """
     Loading of the dataset provided
@@ -68,7 +84,7 @@ def transformer_encoder(inputs, head_size, num_heads, ff_dim, dropout=0):
 
     # Feed Forward Part
     x = layers.LayerNormalization(epsilon=1e-6)(res)
-    x = layers.Conv1D(filters=ff_dim, kernel_size=1, activation="relu")(x)
+    x = layers.Conv1D(filters=ff_dim, kernel_size=1, activation="relu",padding='same')(x)
     x = layers.Dropout(dropout)(x)
     x = layers.Conv1D(filters=inputs.shape[-1], kernel_size=1)(x)
     return x + res
@@ -86,8 +102,9 @@ def build_model(
 ):
     inputs = keras.Input(shape=input_shape)
     x = inputs
-    x_ = SinePositionEncoding()(x)
-    x= x + x_
+    # x_ = SinePositionEncoding()(x)
+    # x= x + x_
+    
     
     for _ in range(num_transformer_blocks):
         x = transformer_encoder(x, head_size, num_heads, ff_dim, dropout)
@@ -107,7 +124,7 @@ def model_training(train):
     input_shape = X_train.shape[1:]
     model=build_model(
                         input_shape,
-                        head_size=256,
+                        head_size=128,
                         num_heads=4,
                         ff_dim=4,
                         num_transformer_blocks=4,
@@ -120,15 +137,15 @@ def model_training(train):
                     optimizer=keras.optimizers.Adam(learning_rate=1e-4),
                     metrics=keras.metrics.BinaryAccuracy(),
     )
-    callbacks = [keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)]
-    
+    # callbacks = [keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)]
+    # %tensorboard --logdir logs/fit
     model.fit(
-                X_train,
-                Y_train,
-                validation_split=0.2,
-                epochs=200,
-                batch_size=16,
-                callbacks=callbacks,
+    X_train,
+    Y_train,
+    validation_split=0.2,
+    epochs=200,
+    batch_size=16,
+    callbacks=[tb_callback,keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True)],
     )
     
     
@@ -167,13 +184,19 @@ if __name__=="__main__":
     preprocessed_data=preprocess_data(data)
     
     train,test,val=split_train_test(preprocessed_data)
+    # train = train[0:500]
     X_train,Y_train = timeseries_transform(train)
-    X_test,Y_test = timeseries_transform(train)
+    X_test,Y_test = timeseries_transform(test)
     X_val,Y_val = timeseries_transform(val)
     
-    model_self=model_training((X_train,Y_train))
-    # metrics=metric(val,model_self)
     
-#     lstm_cm,lstm_balanced_accuracy=lstm(preprocessed_data,target='labels')
-#     metrics_validation = [lstm_cm, lstm_balanced_accuracy]
-#     validation(metrics,metrics_validation)
+    
+    model_self=model_training((X_train,Y_train))
+    model_self.save("withPos1")
+    metrics=metric((X_test,Y_test),model_self)
+    
+    lstm_cm,lstm_balanced_accuracy=lstm(preprocessed_data,target='labels')
+    metrics_validation = [lstm_cm, lstm_balanced_accuracy]
+    validation(metrics,metrics_validation)
+    
+    
